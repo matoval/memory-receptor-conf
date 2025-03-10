@@ -1,5 +1,8 @@
-# get memory usage
+# get memory usage of pid with receptor in the name
 while ps aux | sed -ne 1p -e /receptor/p >> logs/psOutput.log; do sleep 15; done &
+
+# get memory usage of all pids sorted with highest rss
+while ps aux --sort -rss | head -n 26 >> /var/log/psOutput.log; do sleep 15; done
 
 # run non-kube jobs
 ansible-runner transmit ./demo -p test.yml | receptorctl --socket /tmp/control.sock work submit -f --node execution -p - ansible-runner | ansible-runner process ./demo
