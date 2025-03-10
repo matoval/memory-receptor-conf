@@ -1,0 +1,19 @@
+---
+- node:
+    id: kube-node
+
+- log-level: Debug
+
+- tcp-listeners:
+    port: 2222
+
+- control-services:
+    service: control
+    filename: /tmp/kube-node.sock
+
+- work-kubernetes:
+    worktype: kubeit
+    authmethod: kubeconfig
+    allowruntimeauth: true
+    allowruntimepod: true
+    allowruntimeparams: true

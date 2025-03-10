@@ -1,0 +1,8 @@
+[Unit]
+Description=psOutput
+
+[Service]
+ExecStart=bash -c "while ps aux --sort -rss | head -n 26 >> /var/log/psOutput.log; do sleep 15; done"
+
+[Install]
+WantedBy=network.target

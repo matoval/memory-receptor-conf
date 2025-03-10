@@ -1,0 +1,11 @@
+[Unit]
+Description=Receptor
+
+[Service]
+ExecStart=/usr/bin/receptor --config --config-v2 /root/receptor/test-configs/kube-node.yml
+StandardOutput=append:/var/log/receptor-kube.log
+StandardError=append:/var/log/receptor-kube.log
+LimitNOFILE=100000
+
+[Install]
+WantedBy=network.target

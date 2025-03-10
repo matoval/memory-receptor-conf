@@ -1,0 +1,11 @@
+[Unit]
+Description=Receptor
+
+[Service]
+ExecStart=/usr/bin/receptor --config /root/receptor/test-configs/control.yml
+StandardOutput=append:/var/log/receptor.log
+StandardError=append:/var/log/receptor.log
+LimitNOFILE=100000
+
+[Install]
+WantedBy=network.target

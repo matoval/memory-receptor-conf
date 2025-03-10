@@ -1,0 +1,26 @@
+---
+- node:
+    id: control
+
+- log-level: debug
+
+- control-service:
+    service: control
+    filename: /tmp/control.sock
+
+- tcp-listener:
+    port: 2223
+
+- work-command:
+    workType: cat
+    command: cat
+
+- pyroscope-client:
+    applicationName: "receptor-control"
+    serverAddress: "http://192.168.1.56:4040"
+    profileTypes: 
+      - ProfileGoroutines
+      - ProfileMutexCount
+      - ProfileMutexDuration
+      - ProfileBlockCount
+      - ProfileBlockDuration

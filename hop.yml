@@ -1,0 +1,24 @@
+---
+- node:
+    id: hop
+
+- log-level: debug
+
+- control-service:
+    service: control
+
+- tcp-peer:
+    address: localhost:2223
+
+- tcp-listener:
+    port: 2224
+
+- pyroscope-client:
+    applicationName: "receptor-hop"
+    serverAddress: "http://192.168.1.56:4040"
+    profileTypes: 
+      - ProfileGoroutines
+      - ProfileMutexCount
+      - ProfileMutexDuration
+      - ProfileBlockCount
+      - ProfileBlockDuration

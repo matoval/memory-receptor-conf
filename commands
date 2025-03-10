@@ -1,0 +1,7 @@
+while ps aux | sed -ne 1p -e /receptor/p >> logs/psOutput.log; do sleep 15; done &
+
+ansible-runner transmit ./demo -p test.yml | receptorctl --socket /tmp/control.sock work submit -f --node execution -p - ansible-runner | ansible-runner process ./demo
+
+./receptor --config test-configs/control.yml > logs/control.log 2>&1 &
+
+ansible-runner transmit ./demo -p test.yml | receptorctl --socket /tmp/kube-node.sock work submit kubeit --node kube-node --param secret_kube_config=@$HOME/.kube/config --param secret_kube_pod=@$HOME/receptor/test-configs/ansible-runner.yml --payload - -f | ansible-runner process ./demo

@@ -1,0 +1,32 @@
+---
+- node:
+    id: execution
+
+- log-level: debug
+
+- control-service:
+    service: control
+    filename: /tmp/execution.sock
+
+- tcp-peer:
+    address: localhost:2224
+
+- work-command:
+    workType: cat
+    command: cat
+
+- work-command:
+    worktype: ansible-runner
+    command: ansible-runner
+    params: worker
+    allowruntimeparams: true
+
+- pyroscope-client:
+    applicationName: "receptor-execution"
+    serverAddress: "http://192.168.1.56:4040"
+    profileTypes: 
+      - ProfileGoroutines
+      - ProfileMutexCount
+      - ProfileMutexDuration
+      - ProfileBlockCount
+      - ProfileBlockDuration
