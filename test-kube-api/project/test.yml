@@ -1,0 +1,56 @@
+---
+- name: Show facts on a host
+  hosts: all
+  tasks:
+    - name: Show ansible_facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: Show the output of setup
+      ansible.builtin.setup:
+      register: setup_out
+
+    - ansible.builtin.debug:
+        var: setup_out
+
+    - name: Show custom cred id and secret
+      ansible.builtin.shell: >
+        echo id:{{ psi_app_cred_id }} and secret:{{ psi_app_cred_secret }}
+      ignore_errors: yes
+      register: info_out
+
+    - name: Show info_out
+      ansible.builtin.debug:
+        var: info_out
+
+    - name: Show ansible_facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: Show the output of setup
+      ansible.builtin.setup:
+      register: setup_out
+
+    - ansible.builtin.debug:
+        var: setup_out
+
+    - name: Show custom cred id and secret
+      ansible.builtin.shell: >
+        echo id:{{ psi_app_cred_id }} and secret:{{ psi_app_cred_secret }}
+      ignore_errors: yes
+      register: info_out
+
+    - name: Show info_out
+      ansible.builtin.debug:
+        var: info_out
+
+    - name: Show ansible_facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: Show the output of setup
+      ansible.builtin.setup:
+      register: setup_out
+
+    - ansible.builtin.debug:
+        var: setup_out
