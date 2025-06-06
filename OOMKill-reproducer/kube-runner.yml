@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+ generateName: ansible-runner-
+ lablels:
+   app: ansible-runner
+spec:
+ containers:
+   - name: worker
+     image: quay.io/ansible/awx-ee:latest
+     args: ["ansible-runner", "worker", "--private-data-dir=/runner"]
+     resources:
+      requests:
+        memory: "140Mi"
+        cpu: "500m"
+      limits:
+        memory: "280Mi"
+        cpu: "1000m"
+ restartPolicy: Never

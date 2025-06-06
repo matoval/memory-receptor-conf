@@ -1,0 +1,29 @@
+---
+- name: Write and print a large file without sudo (no vars)
+  hosts: all
+  gather_facts: no
+  tasks:
+
+    - name: Create temp directory in user's home
+      file:
+        path: "{{ lookup('env','HOME') }}/iotest"
+        state: directory
+        mode: '0755'
+
+    - name: Write a 100MB file to create OOMKill or 80MB to sucessfully run with repeated text
+      shell: yes "This is a line of sample data for I/O testing." | head -c 80M > {{ lookup('env','HOME') }}/iotest/largefile.txt
+      args:
+        executable: /bin/bash
+
+    - name: Show first 20 lines of the large file (preview only)
+      shell: head -n 20 {{ lookup('env','HOME') }}/iotest/largefile.txt
+      register: file_preview
+
+    - name: Print preview of the large file
+      debug:
+        msg: "{{ file_preview.stdout_lines }}"
+
+    - name: Clean up
+      file:
+        path: "{{ lookup('env','HOME') }}/iotest"
+        state: absent
