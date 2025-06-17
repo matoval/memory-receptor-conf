@@ -1,0 +1,37 @@
+---
+- name: Log elapsed time every minute to a file (with timestamps)
+  hosts: all
+  gather_facts: false
+
+  vars:
+    iterations: 1000000  # Effectively infinite loop
+    log_path: "./elapsed.log"
+
+  tasks:
+
+    - name: Capture start time
+      command: date +%s
+      register: start_time_result
+      run_once: true
+
+    - name: Set start time
+      set_fact:
+        start_time: "{{ start_time_result.stdout | int }}"
+
+    - name: Ensure log file exists
+      file:
+        path: "{{ log_path }}"
+        state: touch
+        mode: '0644'
+
+    - name: Log elapsed time every minute (with timestamp)
+      shell: |
+        now=$(date +%s)
+        timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+        echo "[$timestamp] Elapsed time: $((now - {{ start_time }})) seconds" >> {{ log_path }}
+        sleep 60
+      args:
+        executable: /bin/bash
+      loop: "{{ range(0, iterations) }}"
+      loop_control:
+        label: "Minute {{ item }}"

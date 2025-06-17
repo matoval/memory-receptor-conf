@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: ansible-runner-
+  labels:
+    app: ansible-runner
+spec:
+  containers:
+    - name: worker
+      image: quay.io/ansible/awx-ee:latest
+      args: ["ansible-runner", "worker", "--private-data-dir=/runner"]
+  restartPolicy: Never
