@@ -10,4 +10,7 @@ spec:
     - name: worker
       image: quay.io/ansible/awx-ee:latest
       args: ["ansible-runner", "worker", "--private-data-dir=/runner"]
+  ee_extra_env: |
+    - name: RECEPTOR_KUBE_SUPPORT_RECONNECT
+      value: enabled
   restartPolicy: Never
