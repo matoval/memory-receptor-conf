@@ -1,0 +1,91 @@
+---
+- name: AAP Memory Test Workload Execution
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Set current variables for workload
+      set_fact:
+        fileSize: "{{ file_size | default(10) }}"
+        iterations: "{{ iterations_count | default(1) }}"
+        workload_type: "{{ workload_type | default('baseline') }}"
+        test_duration: "{{ test_duration | default(180) }}"
+
+    - name: Display workload information
+      debug:
+        msg: |
+          Starting {{ workload_type }} workload on {{ inventory_hostname }}
+          File size per iteration: {{ fileSize }}MB
+          Number of iterations: {{ iterations }}
+          Expected duration: {{ test_duration }} seconds
+
+    - name: Create temp directory for workload
+      file:
+        path: "{{ lookup('env','HOME') }}/iotest_{{ workload_type }}"
+        state: directory
+        mode: '0755'
+
+    - name: Execute workload based on test type
+      block:
+        - name: Run baseline monitoring (single long task)
+          block:
+            - name: Baseline monitoring - continuous system activity
+              shell: |
+                echo "Starting baseline monitoring for {{ test_duration }} seconds"
+                start_time=$(date +%s)
+                end_time=$((start_time + {{ test_duration }}))
+                
+                while [ $(date +%s) -lt $end_time ]; do
+                  # Light system activity to generate baseline load
+                  ps aux > /tmp/baseline_process_list.txt
+                  df -h > /tmp/baseline_disk_usage.txt
+                  free -m > /tmp/baseline_memory_info.txt
+                  
+                  # Sleep for 10 seconds between checks
+                  sleep 10
+                done
+                
+                echo "Baseline monitoring completed after {{ test_duration }} seconds"
+              register: baseline_result
+          when: workload_type == 'baseline'
+
+        - name: Run workload iterations for non-baseline tests
+          loop: "{{ range(0, iterations)|list }}"
+          loop_control:
+            index_var: iteration_index
+          block:
+            - name: Write {{ fileSize }}MB file iteration {{ iteration_index + 1 }}
+              shell: |
+                echo "Iteration {{ iteration_index + 1 }} of {{ iterations }}"
+                dd if=/dev/zero of={{ lookup('env','HOME') }}/iotest_{{ workload_type }}/largefile_{{ iteration_index + 1 }}.txt bs=1M count={{ fileSize }}
+              args:
+                executable: /bin/bash
+
+            - name: Verify file creation iteration {{ iteration_index + 1 }}
+              stat:
+                path: "{{ lookup('env','HOME') }}/iotest_{{ workload_type }}/largefile_{{ iteration_index + 1 }}.txt"
+              register: file_stat
+
+            - name: Report file size iteration {{ iteration_index + 1 }}
+              debug:
+                msg: "Created file {{ file_stat.stat.path }} ({{ (file_stat.stat.size / 1024 / 1024) | round(2) }}MB)"
+
+            - name: Sleep between iterations
+              pause:
+                seconds: 5
+          when: workload_type != 'baseline'
+
+    - name: Report workload completion
+      debug:
+        msg: |
+          Workload {{ workload_type }} completed on {{ inventory_hostname }}
+          {% if workload_type == 'baseline' %}
+          Baseline monitoring result: {{ baseline_result.stdout_lines | default(['No output']) | join(' ') }}
+          {% else %}
+          Files created: {{ iterations }} x {{ fileSize }}MB
+          {% endif %}
+
+    - name: Clean up temp directory
+      file:
+        path: "{{ lookup('env','HOME') }}/iotest_{{ workload_type }}"
+        state: absent
+      when: workload_type != 'baseline'
