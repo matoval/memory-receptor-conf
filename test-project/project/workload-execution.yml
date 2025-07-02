@@ -49,29 +49,10 @@
           when: workload_type == 'baseline'
 
         - name: Run workload iterations for non-baseline tests
+          include_tasks: workload-iteration.yml
           loop: "{{ range(0, iterations)|list }}"
           loop_control:
             index_var: iteration_index
-          block:
-            - name: Write {{ fileSize }}MB file iteration {{ iteration_index + 1 }}
-              shell: |
-                echo "Iteration {{ iteration_index + 1 }} of {{ iterations }}"
-                dd if=/dev/zero of={{ lookup('env','HOME') }}/iotest_{{ workload_type }}/largefile_{{ iteration_index + 1 }}.txt bs=1M count={{ fileSize }}
-              args:
-                executable: /bin/bash
-
-            - name: Verify file creation iteration {{ iteration_index + 1 }}
-              stat:
-                path: "{{ lookup('env','HOME') }}/iotest_{{ workload_type }}/largefile_{{ iteration_index + 1 }}.txt"
-              register: file_stat
-
-            - name: Report file size iteration {{ iteration_index + 1 }}
-              debug:
-                msg: "Created file {{ file_stat.stat.path }} ({{ (file_stat.stat.size / 1024 / 1024) | round(2) }}MB)"
-
-            - name: Sleep between iterations
-              pause:
-                seconds: 5
           when: workload_type != 'baseline'
 
     - name: Report workload completion
