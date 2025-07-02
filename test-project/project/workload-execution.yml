@@ -50,7 +50,7 @@
 
         - name: Run workload iterations for non-baseline tests
           include_tasks: workload-iteration.yml
-          loop: "{{ range(0, iterations)|list }}"
+          loop: "{{ range(0, iterations|int)|list }}"
           loop_control:
             index_var: iteration_index
           when: workload_type != 'baseline'
