@@ -1,0 +1,8 @@
+---
+- name: Playbook that intentionally fails
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: This task will fail
+      ansible.builtin.fail:
+        msg: "This playbook is designed to fail!"

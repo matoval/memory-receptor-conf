@@ -1,0 +1,9 @@
+---
+- name: Playbook that times out
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Task that will timeout
+      ansible.builtin.command: sleep 300
+      async: 10
+      poll: 1

@@ -1,0 +1,8 @@
+---
+- name: Playbook that passes successfully
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: This task will succeed
+      ansible.builtin.debug:
+        msg: "This playbook runs successfully!"

@@ -1,0 +1,1 @@
+unreachable.example.com ansible_host=192.0.2.1 ansible_connection=ssh ansible_ssh_common_args='-o ConnectTimeout=5'

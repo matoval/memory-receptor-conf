@@ -1,0 +1,7 @@
+---
+- name: Playbook with unreachable host
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Try to reach unreachable host
+      ansible.builtin.ping:
