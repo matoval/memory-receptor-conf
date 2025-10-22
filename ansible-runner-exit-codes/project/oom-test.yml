@@ -1,0 +1,26 @@
+---
+- name: OOM Kill Test
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Consume memory until OOM
+      shell: |
+        python3 << 'PYEOF'
+        import time
+        # Allocate memory in 100MB chunks
+        data = []
+        try:
+            while True:
+                # Allocate 100MB
+                data.append(' ' * (100 * 1024 * 1024))
+                print(f"Allocated {len(data) * 100}MB")
+                time.sleep(0.1)
+        except MemoryError:
+            print("MemoryError caught")
+        PYEOF
+      register: result
+      ignore_errors: true
+    
+    - name: Show result
+      debug:
+        var: result

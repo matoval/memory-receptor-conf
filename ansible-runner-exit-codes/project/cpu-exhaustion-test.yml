@@ -1,0 +1,42 @@
+---
+- name: CPU Exhaustion Test
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Consume CPU cycles
+      shell: |
+        python3 << 'PYEOF'
+        import time
+        import multiprocessing
+        
+        def cpu_burn():
+            print("Starting CPU burn")
+            start = time.time()
+            count = 0
+            while time.time() - start < 300:  # Run for 5 minutes
+                count += 1
+                # Intensive calculation
+                _ = sum(i*i for i in range(10000))
+            print(f"Completed {count} iterations")
+        
+        # Spawn multiple processes to use all CPUs
+        processes = []
+        for _ in range(multiprocessing.cpu_count() * 2):
+            p = multiprocessing.Process(target=cpu_burn)
+            p.start()
+            processes.append(p)
+        
+        for p in processes:
+            p.join()
+        PYEOF
+      async: 310
+      poll: 0
+      register: cpu_job
+      
+    - name: Wait for completion
+      async_status:
+        jid: "{{ cpu_job.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 70
+      delay: 5
