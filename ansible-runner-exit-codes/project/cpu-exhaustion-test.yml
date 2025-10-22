@@ -3,33 +3,45 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Consume CPU cycles (gentle, respects resource limits)
+    - name: Consume CPU cycles with timeout (will fail if throttled)
       shell: |
         python3 << 'PYEOF'
         import time
 
-        print("Starting gentle CPU burn...")
+        print("Starting CPU burn that requires sufficient CPU...")
         start_time = time.time()
         count = 0
+        target_iterations = 500000  # Requires ~100m CPU to complete in time
 
-        # Run for 60 seconds with a single thread
-        while time.time() - start_time < 60:
+        # Run CPU-intensive workload
+        while count < target_iterations:
             count += 1
-            # CPU-intensive calculation
+            # Intensive calculation
             _ = sum(i*i for i in range(10000))
 
-            # Brief sleep every 1000 iterations to be gentle
-            if count % 1000 == 0:
+            # Progress every 10000 iterations
+            if count % 10000 == 0:
                 elapsed = time.time() - start_time
-                print(f"Progress: {elapsed:.1f}s - {count} iterations")
-                time.sleep(0.01)  # 10ms pause
+                print(f"Progress: {count}/{target_iterations} iterations, {elapsed:.1f}s elapsed")
 
         total_time = time.time() - start_time
         print(f"Completed: {count} iterations in {total_time:.2f}s")
         print("CPU test finished successfully")
         PYEOF
       register: result
+      async: 45
+      poll: 0
+
+    - name: Wait for completion with timeout
+      async_status:
+        jid: "{{ result.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 9
+      delay: 5
+      # This gives 45 seconds max - should timeout if CPU is heavily throttled
 
     - name: Show result
       debug:
-        var: result.stdout_lines
+        var: job_result.stdout_lines
+      when: job_result is defined
