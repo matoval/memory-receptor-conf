@@ -1,0 +1,15 @@
+---
+- name: Python Segfault Test (crashes process)
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Cause a segmentation fault to crash Python
+      shell: |
+        python3 << 'PYEOF'
+        import ctypes
+        print("About to cause a segmentation fault...")
+        print("This will crash the Python process")
+        # Force a segfault by writing to null pointer
+        ctypes.string_at(0)
+        PYEOF
+      register: result

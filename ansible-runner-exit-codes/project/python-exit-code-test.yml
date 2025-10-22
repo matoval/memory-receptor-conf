@@ -1,0 +1,15 @@
+---
+- name: Python Exit Code Test
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Python exits with specific code
+      shell: |
+        python3 << 'PYEOF'
+        import sys
+        import os
+        print("About to exit with code 42...")
+        # Try sys.exit first
+        sys.exit(42)
+        PYEOF
+      register: result

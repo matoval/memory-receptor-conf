@@ -1,0 +1,20 @@
+---
+- name: Kill ansible-runner process
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Find and kill the ansible-runner parent process
+      shell: |
+        echo "Looking for ansible-runner process..."
+        # Find the ansible-runner or ansible-playbook parent process
+        PARENT_PID=$(ps -o ppid= -p $$ | tr -d ' ')
+        echo "Current shell PID: $$"
+        echo "Parent PID: $PARENT_PID"
+        ps -p $PARENT_PID -o pid,comm,args
+
+        echo "Waiting 2 seconds before killing parent..."
+        sleep 2
+
+        # Kill the parent process with SIGKILL
+        kill -9 $PARENT_PID
+      register: result
