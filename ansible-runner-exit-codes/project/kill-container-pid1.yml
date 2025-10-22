@@ -1,0 +1,18 @@
+---
+- name: Kill Container PID 1 (main process)
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Find and kill container's main process (PID 1)
+      shell: |
+        echo "Current process tree:"
+        ps aux
+        echo ""
+        echo "Container's main process (PID 1):"
+        ps -p 1 -o pid,ppid,comm,args
+        echo ""
+        echo "Waiting 2 seconds before killing PID 1..."
+        sleep 2
+        echo "Sending SIGTERM to PID 1..."
+        # This should terminate the entire container
+        kill -15 1
