@@ -1,0 +1,14 @@
+---
+- name: Container SIGTERM Test
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Send SIGTERM to current process
+      shell: |
+        echo "Starting task that will send SIGTERM to container..."
+        echo "Process ID: $$"
+        sleep 2
+        # Send SIGTERM (graceful shutdown signal)
+        kill -15 $$
+      register: result
+      ignore_errors: true

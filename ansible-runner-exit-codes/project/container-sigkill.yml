@@ -1,0 +1,14 @@
+---
+- name: Container SIGKILL Test
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Send SIGKILL to current process
+      shell: |
+        echo "Starting task that will send SIGKILL to container..."
+        echo "Process ID: $$"
+        sleep 2
+        # Kill the entire process tree
+        kill -9 $$
+      register: result
+      ignore_errors: true

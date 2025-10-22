@@ -1,0 +1,13 @@
+---
+- name: Container Crash Test (Exit 1)
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Force container to crash with exit code 1
+      shell: |
+        echo "Starting task that will crash the container..."
+        echo "This simulates an unhandled error in the container"
+        sleep 2
+        # Force the shell to exit with code 1, which should propagate to ansible-runner
+        exit 1
+      register: result
