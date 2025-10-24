@@ -1,0 +1,12 @@
+---
+- name: Test PR 1444 - Exit Code 2 During Log Streaming
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Task that fails (exit code 2)
+      fail:
+        msg: "Intentional failure to test exit code 2 handling"
+
+# This should cause ansible-runner to exit with code 2
+# With current devel: Receptor marks as "Finished" (bug)
+# With PR #1444: Receptor should mark as "Failed" (fixed)
