@@ -1,0 +1,15 @@
+---
+- name: Long running playbook for manual testing
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Task 1
+      debug:
+        msg: "Starting - delete the pod NOW"
+
+    - name: Long sleep
+      command: sleep 30
+
+    - name: This won't run if pod is deleted
+      debug:
+        msg: "Job completed normally"
