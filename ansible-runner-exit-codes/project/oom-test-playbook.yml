@@ -1,0 +1,43 @@
+---
+- name: Playbook that causes OOM to reproduce receptor Finished + JSON parse error
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Print starting message
+      debug:
+        msg: "Starting memory allocation test - this will trigger OOM"
+
+    - name: Show initial status
+      debug:
+        msg: "ansible-runner will start writing JSON events to stdout"
+
+    - name: Allocate large amount of memory to trigger OOMKilled
+      command: |
+        python3 -c "
+        import sys
+        import time
+        print('Starting memory allocation loop', flush=True)
+        data = []
+        # Allocate memory in 100MB chunks until OOMKilled
+        for i in range(100):
+            print(f'Allocating 100MB chunk {i+1}/100', flush=True)
+            try:
+                # Allocate 100MB
+                data.append(' ' * (100 * 1024 * 1024))
+                time.sleep(0.1)
+            except MemoryError:
+                print('MemoryError caught - limit reached', flush=True)
+                sys.exit(1)
+        print('Completed all allocations (should not reach here)', flush=True)
+        time.sleep(60)
+        "
+      register: result
+      ignore_errors: true
+
+    - name: This task will never run due to OOMKill
+      debug:
+        msg: "If you see this message, the OOM test did not work"
+
+    - name: Show result (also will not run)
+      debug:
+        var: result

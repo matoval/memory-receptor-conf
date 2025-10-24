@@ -1,0 +1,32 @@
+---
+- name: Long-running playbook for SIGKILL testing
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Print starting message
+      debug:
+        msg: "Starting long-running task - manually kill the pod during execution"
+
+    - name: Instructions
+      debug:
+        msg: |
+          To reproduce the issue:
+          1. While this playbook is running, find the pod name
+          2. Run: kubectl delete pod <pod-name> --force --grace-period=0
+          3. This will SIGKILL the pod before ansible-runner finishes
+          4. Receptor will mark as 'Finished' but AAP will get JSON parse error
+
+    - name: Long running task - kill pod while this is running
+      command: |
+        bash -c "
+        for i in {1..300}; do
+          echo \"Loop iteration \$i/300\"
+          sleep 1
+        done
+        echo \"Task completed (should not reach here if pod is killed)\"
+        "
+      register: result
+
+    - name: Final task (will not run if pod is killed)
+      debug:
+        msg: "Task completed successfully - OOM or SIGKILL did not occur"

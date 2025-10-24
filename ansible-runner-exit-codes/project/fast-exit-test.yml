@@ -1,0 +1,14 @@
+---
+- name: Fast exit test - pod completes before receptor attaches
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Exit immediately to create race condition
+      command: /bin/true
+
+    # Ansible-runner might not finish writing final JSON before pod terminates
+    # This creates a race condition where:
+    # 1. Pod completes quickly (exit 0)
+    # 2. Receptor sees ErrPodCompleted before attaching
+    # 3. Treats as success and marks "Finished"
+    # 4. But if JSON output is incomplete, AAP gets parse error

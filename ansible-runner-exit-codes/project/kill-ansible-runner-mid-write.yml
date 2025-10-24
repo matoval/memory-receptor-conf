@@ -1,0 +1,30 @@
+---
+- name: Kill ansible-runner process during JSON writing
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Print starting
+      debug:
+        msg: "Starting test"
+
+    - name: Find and kill ansible-runner process to corrupt output
+      shell: |
+        # Give ansible-runner time to start writing events
+        sleep 2
+
+        # Find ansible-runner process and kill it
+        pkill -9 -f 'ansible-runner worker' || true
+
+        # Alternatively, kill the callback process
+        pkill -9 -f 'ansible-playbook' || true
+      ignore_errors: true
+      async: 3
+      poll: 0
+
+    - name: Long task to keep playbook running
+      command: sleep 10
+      ignore_errors: true
+
+# Expected: Pod exits, but ansible-runner didn't finish writing
+# Receptor marks as "Finished" if exit code appears successful
+# AAP gets incomplete JSON
