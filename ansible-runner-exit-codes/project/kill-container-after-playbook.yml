@@ -1,0 +1,37 @@
+---
+- name: Kill container immediately after playbook completes
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Start background killer that waits for playbook completion
+      shell: |
+        (
+          # Wait for playbook_on_stats event (last event before status line)
+          sleep 1
+
+          # Kill PID 1 (container's main process - ansible-runner)
+          # This terminates the container before final JSON status is written
+          kill -9 1
+        ) &
+      async: 0
+      poll: 0
+      ignore_errors: true
+
+    - name: Do some work
+      debug:
+        msg: "Task {{ item }}"
+      loop: [1, 2, 3]
+
+    - name: Final task
+      debug:
+        msg: "Playbook about to complete - killer will activate"
+
+# Expected result:
+# 1. Background process starts
+# 2. Playbook runs and completes normally
+# 3. Ansible-runner starts writing final status
+# 4. Background killer kills PID 1
+# 5. Container exits before writing {"status": ...}, {"zipfile": ...}
+# 6. Receptor streams incomplete logs
+# 7. Marks as "Finished" (log streaming succeeded)
+# 8. AAP gets JSON parse error (incomplete output)

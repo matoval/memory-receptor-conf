@@ -1,0 +1,29 @@
+---
+- name: Simulate cluster node/storage issue during job
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Simulate node pressure by filling memory gradually
+      shell: |
+        # Background process that simulates cluster pressure
+        (
+          sleep 2
+
+          # Approach 1: Send SIGTERM to ansible-runner (like k8s eviction)
+          # This simulates graceful shutdown but we interrupt it
+          pkill -TERM -f 'ansible-runner worker'
+          sleep 0.5
+
+          # Then SIGKILL if still running (simulates force eviction)
+          pkill -KILL -f 'ansible-runner worker' || kill -9 1
+        ) &
+      args:
+        executable: /bin/bash
+
+    - name: Normal playbook tasks
+      debug:
+        msg: "Running task {{ item }}"
+      loop: [1, 2, 3, 4, 5]
+
+    - name: This may not complete
+      command: sleep 10

@@ -1,0 +1,38 @@
+---
+- name: Truncate stdout to corrupt JSON output
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Find and truncate stdout file
+      shell: |
+        # Launch background process
+        (
+          sleep 2
+
+          # Find the stdout file being written by ansible-runner
+          # It's typically in /runner/artifacts/<job_id>/stdout
+          STDOUT_FILE=$(find /runner/artifacts -name stdout -type f 2>/dev/null | head -1)
+
+          if [ -n "$STDOUT_FILE" ]; then
+            # Truncate the file to corrupt the JSON
+            # This leaves partial output
+            truncate -s -100 "$STDOUT_FILE" 2>/dev/null || true
+
+            # Or alternatively, fill it with garbage
+            # echo "CORRUPTED" >> "$STDOUT_FILE"
+          fi
+
+          # Then kill the ansible-runner process
+          pkill -9 -f 'ansible-runner worker' || kill -9 1
+        ) &
+        exit 0
+      args:
+        executable: /bin/bash
+
+    - name: Generate some output
+      debug:
+        msg: "Output line {{ item }}"
+      loop: "{{ range(1, 20) | list }}"
+
+    - name: Wait for corruption
+      command: sleep 5

@@ -1,0 +1,32 @@
+---
+- name: Fill disk to cause write failure during JSON output
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Start disk filler
+      shell: |
+        # Fill up available disk space
+        (
+          sleep 1
+          # Try to fill /tmp which is where ansible-runner might write
+          dd if=/dev/zero of=/tmp/filler bs=1M count=10000 2>/dev/null || true
+
+          # Also try to fill current directory
+          dd if=/dev/zero of=/runner/filler bs=1M count=10000 2>/dev/null || true
+        ) &
+      args:
+        executable: /bin/bash
+      ignore_errors: true
+
+    - name: Generate output
+      debug:
+        msg: "Line {{ item }}"
+      loop: "{{ range(1, 100) | list }}"
+
+    - name: Final task
+      debug:
+        msg: "About to write final status - disk may be full"
+
+# Expected: Disk full causes zipfile creation or final JSON write to fail
+# Container may exit with error but if during log streaming phase,
+# receptor might still mark as Finished

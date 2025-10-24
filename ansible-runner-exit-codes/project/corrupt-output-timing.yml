@@ -1,0 +1,40 @@
+---
+- name: Corrupt ansible-runner output by killing at precise moment
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Launch timed killer for PID 1
+      shell: |
+        # Background process that kills the container
+        (
+          # Give playbook time to run (adjust as needed)
+          sleep 3
+
+          # Force kill PID 1 (ansible-runner worker process)
+          # Exit code will be 137 (128+9) but during log streaming
+          # receptor might not check it properly
+          kill -KILL 1
+        ) >/dev/null 2>&1 &
+
+        # Return success immediately
+        exit 0
+      args:
+        executable: /bin/bash
+
+    - name: Task 1
+      debug:
+        msg: "Running task 1"
+
+    - name: Task 2
+      debug:
+        msg: "Running task 2"
+
+    - name: Task 3
+      debug:
+        msg: "Running task 3 - container will be killed soon"
+
+    - name: Final task that may not complete
+      command: sleep 5
+
+# This should kill the container mid-execution or right after
+# If timing is right, logs will be incomplete
