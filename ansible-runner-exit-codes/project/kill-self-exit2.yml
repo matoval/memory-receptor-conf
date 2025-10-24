@@ -1,0 +1,21 @@
+---
+- name: Kill ansible-runner to create exit code 2 with incomplete output
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Write some output
+      debug:
+        msg: "Starting playbook - about to kill ansible-runner"
+
+    - name: Small delay to ensure log streaming has started
+      command: sleep 1
+
+    - name: Kill ansible-runner process (PID 1) to exit with SIGTERM (143)
+      shell: |
+        # Kill PID 1 (ansible-runner) with exit code that will propagate
+        kill -TERM 1
+      ignore_errors: true
+
+    - name: This task will never run
+      debug:
+        msg: "This should not appear"

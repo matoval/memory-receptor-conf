@@ -1,0 +1,15 @@
+---
+- name: Force exit code 137 (SIGKILL) by killing ansible-runner
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Write some output
+      debug:
+        msg: "Starting - will kill ansible-runner with SIGKILL"
+
+    - name: Small delay
+      command: sleep 1
+
+    - name: Kill ansible-runner with SIGKILL (exit 137)
+      shell: kill -9 1
+      ignore_errors: true
