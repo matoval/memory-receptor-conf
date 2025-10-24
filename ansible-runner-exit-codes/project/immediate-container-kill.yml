@@ -1,0 +1,13 @@
+---
+- name: Immediate container termination test
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Kill container in 0.2 seconds
+      shell: (sleep 0.2 && kill -9 1) &
+      args:
+        executable: /bin/bash
+
+    - name: Quick task
+      debug:
+        msg: "Done"

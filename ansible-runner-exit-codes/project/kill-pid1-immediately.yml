@@ -1,0 +1,26 @@
+---
+- name: Kill PID 1 to interrupt ansible-runner
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Launch immediate killer
+      shell: |
+        sleep 0.5 && kill -9 1
+      async: 10
+      poll: 0
+
+    - name: Task 1
+      debug:
+        msg: "This should complete"
+
+    - name: Task 2
+      debug:
+        msg: "This should complete"
+
+    - name: Final task
+      debug:
+        msg: "Playbook complete - about to write final status"
+
+# Container should be killed 0.5 seconds after start
+# Playbook takes ~0.3 seconds to run
+# So kill happens AFTER playbook completes but BEFORE final JSON write
