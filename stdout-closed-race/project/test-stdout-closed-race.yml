@@ -40,6 +40,10 @@
         command: cancel
         unit_id: "{{ work_result.unit_id }}"
     
+    - name: Wait a moment for error to be set
+      pause:
+        seconds: 1
+    
     - name: Check work status (should show the error)
       receptorctl:
         node: "{{ receptor_node }}"
@@ -47,6 +51,15 @@
         unit_id: "{{ work_result.unit_id }}"
       register: status_result
     
-    - name: Display status (look for 'file already closed' error)
+    - name: Display full status details
       debug:
         var: status_result
+    
+    - name: Check if error contains 'file already closed'
+      debug:
+        msg: "Error detail: {{ status_result.detail }}"
+      when: status_result.detail is defined
+    
+    - name: Display raw status JSON
+      debug:
+        msg: "{{ status_result | to_json }}"
