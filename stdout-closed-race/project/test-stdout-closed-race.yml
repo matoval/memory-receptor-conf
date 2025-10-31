@@ -1,0 +1,52 @@
+---
+# Playbook to reproduce the "file already closed" race condition error
+# Error message: "Error with pod's stdout: writing to stdout: write /tmp/receptor/.../stdout: file already closed"
+#
+# This playbook creates a Kubernetes job that:
+# 1. Runs for a long time to ensure stdout is actively streaming
+# 2. Can be interrupted/cancelled to trigger the race condition
+# 3. Should be run through Receptor in AAP to trigger the error
+
+- name: Test stdout closed race condition
+  hosts: localhost
+  gather_facts: false
+  vars:
+    receptor_node: "node1"  # Update with your receptor node
+    work_type: "kubernetes"  # Update with your kubernetes work type
+  
+  tasks:
+    - name: Submit long-running work to trigger race condition
+      receptorctl:
+        node: "{{ receptor_node }}"
+        command: submit
+        work_type: "{{ work_type }}"
+        params:
+          kube_command: "/bin/sh"
+          kube_params: "-c 'for i in $(seq 1 100); do echo \"Log line $i\"; sleep 0.1; done'"
+        register: work_result
+    
+    - name: Display work unit ID
+      debug:
+        msg: "Work unit ID: {{ work_result.unit_id }}"
+    
+    # Wait a bit, then cancel to trigger race condition
+    - name: Wait for work to start
+      pause:
+        seconds: 2
+    
+    - name: Cancel work unit to trigger stdout close race condition
+      receptorctl:
+        node: "{{ receptor_node }}"
+        command: cancel
+        unit_id: "{{ work_result.unit_id }}"
+    
+    - name: Check work status (should show the error)
+      receptorctl:
+        node: "{{ receptor_node }}"
+        command: status
+        unit_id: "{{ work_result.unit_id }}"
+      register: status_result
+    
+    - name: Display status (look for 'file already closed' error)
+      debug:
+        var: status_result
