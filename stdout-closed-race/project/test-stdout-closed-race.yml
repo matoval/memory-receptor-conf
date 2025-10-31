@@ -21,11 +21,12 @@
   
   tasks:
     - name: Submit long-running work to trigger race condition
-      command: >
-        receptorctl work submit {{ work_type }}
+      shell: >
+        receptorctl --socket {{ receptor_socket }} work submit {{ work_type }}
         --param kube_command=/bin/sh
-        --param kube_params=-c 'for i in $(seq 1 100); do echo "Log line $i"; sleep 0.1; done'
-        --socket {{ receptor_socket }}
+        --param "kube_params=-c 'for i in $(seq 1 100); do echo \"Log line $i\"; sleep 0.1; done'"
+      environment:
+        RECEPTORCTL_SOCKET: "{{ receptor_socket }}"
       register: work_result
       changed_when: false
     
@@ -44,9 +45,10 @@
         seconds: 2
     
     - name: Cancel work unit to trigger stdout close race condition
-      command: >
-        receptorctl work cancel {{ work_unit_id }}
-        --socket {{ receptor_socket }}
+      shell: >
+        receptorctl --socket {{ receptor_socket }} work cancel {{ work_unit_id }}
+      environment:
+        RECEPTORCTL_SOCKET: "{{ receptor_socket }}"
       register: cancel_result
       changed_when: false
       failed_when: false
@@ -56,9 +58,10 @@
         seconds: 1
     
     - name: Check work results (should show the error)
-      command: >
-        receptorctl work results {{ work_unit_id }}
-        --socket {{ receptor_socket }}
+      shell: >
+        receptorctl --socket {{ receptor_socket }} work results {{ work_unit_id }}
+      environment:
+        RECEPTORCTL_SOCKET: "{{ receptor_socket }}"
       register: status_result
       changed_when: false
       failed_when: false
@@ -85,5 +88,4 @@
           {% endif %}
           ========================================
       when: status_result.stdout is defined and status_result.stdout | length > 0
-
 
