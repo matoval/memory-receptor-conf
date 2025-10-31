@@ -6,28 +6,37 @@
 # 1. Runs for a long time to ensure stdout is actively streaming
 # 2. Can be interrupted/cancelled to trigger the race condition
 # 3. Should be run through Receptor in AAP to trigger the error
+#
+# Prerequisites:
+# - receptorctl must be installed and available in PATH
+# - RECEPTORCTL_SOCKET environment variable must be set (or use --socket flag)
+# - Or update the socket path in the receptorctl commands below
 
 - name: Test stdout closed race condition
   hosts: localhost
   gather_facts: false
   vars:
-    receptor_node: "node1"  # Update with your receptor node
+    receptor_socket: "{{ ansible_env.RECEPTORCTL_SOCKET | default('unix:/var/run/receptor/receptor.sock') }}"
     work_type: "kubernetes"  # Update with your kubernetes work type
   
   tasks:
     - name: Submit long-running work to trigger race condition
-      receptorctl:
-        node: "{{ receptor_node }}"
-        command: submit
-        work_type: "{{ work_type }}"
-        params:
-          kube_command: "/bin/sh"
-          kube_params: "-c 'for i in $(seq 1 100); do echo \"Log line $i\"; sleep 0.1; done'"
-        register: work_result
+      command: >
+        receptorctl work submit {{ work_type }}
+        --param kube_command=/bin/sh
+        --param kube_params=-c 'for i in $(seq 1 100); do echo "Log line $i"; sleep 0.1; done'
+        --socket {{ receptor_socket }}
+      register: work_result
+      changed_when: false
+    
+    - name: Extract work unit ID from output
+      set_fact:
+        work_unit_id: "{{ work_result.stdout | regex_search('Work unit ID: ([^\\s]+)', '\\1') | first }}"
+      when: work_result.stdout is defined
     
     - name: Display work unit ID
       debug:
-        msg: "Work unit ID: {{ work_result.unit_id }}"
+        msg: "Work unit ID: {{ work_unit_id }}"
     
     # Wait a bit, then cancel to trigger race condition
     - name: Wait for work to start
@@ -35,31 +44,46 @@
         seconds: 2
     
     - name: Cancel work unit to trigger stdout close race condition
-      receptorctl:
-        node: "{{ receptor_node }}"
-        command: cancel
-        unit_id: "{{ work_result.unit_id }}"
+      command: >
+        receptorctl work cancel {{ work_unit_id }}
+        --socket {{ receptor_socket }}
+      register: cancel_result
+      changed_when: false
+      failed_when: false
     
     - name: Wait a moment for error to be set
       pause:
         seconds: 1
     
-    - name: Check work status (should show the error)
-      receptorctl:
-        node: "{{ receptor_node }}"
-        command: status
-        unit_id: "{{ work_result.unit_id }}"
+    - name: Check work results (should show the error)
+      command: >
+        receptorctl work results {{ work_unit_id }}
+        --socket {{ receptor_socket }}
       register: status_result
+      changed_when: false
+      failed_when: false
     
-    - name: Display full status details
+    - name: Display status output
       debug:
-        var: status_result
+        var: status_result.stdout
     
     - name: Check if error contains 'file already closed'
       debug:
-        msg: "Error detail: {{ status_result.detail }}"
-      when: status_result.detail is defined
-    
-    - name: Display raw status JSON
-      debug:
-        msg: "{{ status_result | to_json }}"
+        msg: |
+          ========================================
+          ERROR CHECK
+          ========================================
+          Raw output:
+          {{ status_result.stdout }}
+          
+          {% if 'already closed' in status_result.stdout | default('') %}
+          ✓ FOUND: "file already closed" error in output!
+          {% elif 'Error with pod' in status_result.stdout | default('') %}
+          ⚠ Found pod error: {{ status_result.stdout }}
+          {% else %}
+          Note: Error details may be in the work unit status file or job traceback
+          {% endif %}
+          ========================================
+      when: status_result.stdout is defined and status_result.stdout | length > 0
+
+
