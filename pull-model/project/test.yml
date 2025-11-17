@@ -1,0 +1,16 @@
+---
+- name: Monitor Execution Node Connection
+  hosts: all
+  sources:
+    - ansible.eda.file:
+        path: /home/msandova/receptor-logs/receptor.log
+
+  rules:
+    - name: Trigger Demo Job When Execution Node Connects
+      condition: >
+        event.line is search('Connection established with 192.168.1.79') and
+        event.line is search('remote_id')
+      action:
+        run_job_template:
+          name: "Demo Job Template"
+          organization: "Default"
