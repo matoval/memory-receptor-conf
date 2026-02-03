@@ -1,16 +1,55 @@
 ---
 # Reproducer for: "Failed to JSON parse a line from worker stream"
 #
-# This playbook uses a role with large files in files/ directory.
-# The copy tasks trigger transmission of these files via receptor.
-# When the execution node disk is nearly full, the transmission
-# will fail mid-write causing truncated JSON in the stdout file.
+# This playbook generates massive output to fill the receptor stdout file.
+# When disk fills mid-write, the JSON output gets truncated causing:
+# "Failed to JSON parse a line from worker stream"
 #
-# IMPORTANT: The data files must be created on the control node.
-# See README.md for setup instructions.
+# Pre-fill exec node disk leaving ~100-200MB free, then run this job.
 
-- name: Large files test for JSON parse error
+- name: Generate massive output to trigger JSON parse error
   hosts: all
   gather_facts: false
-  roles:
-    - largefiles
+  tasks:
+    - name: Show initial disk usage
+      ansible.builtin.shell: df -h /tmp
+      register: disk_before
+
+    - name: Display initial disk
+      ansible.builtin.debug:
+        var: disk_before.stdout_lines
+
+    - name: Generate massive output - phase 1
+      ansible.builtin.debug:
+        msg: "OUTPUT_LINE_{{ item }}: {{ 'X' * 5000 }}"
+      loop: "{{ range(1, 5001) | list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Generate massive output - phase 2
+      ansible.builtin.debug:
+        msg: "OUTPUT_LINE_{{ item }}: {{ 'Y' * 5000 }}"
+      loop: "{{ range(5001, 10001) | list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Generate massive output - phase 3
+      ansible.builtin.debug:
+        msg: "OUTPUT_LINE_{{ item }}: {{ 'Z' * 5000 }}"
+      loop: "{{ range(10001, 15001) | list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Generate massive output - phase 4
+      ansible.builtin.debug:
+        msg: "OUTPUT_LINE_{{ item }}: {{ 'A' * 5000 }}"
+      loop: "{{ range(15001, 20001) | list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Generate massive output - phase 5
+      ansible.builtin.debug:
+        msg: "OUTPUT_LINE_{{ item }}: {{ 'B' * 5000 }}"
+      loop: "{{ range(20001, 25001) | list }}"
+      loop_control:
+        label: "{{ item }}"
