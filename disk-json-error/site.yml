@@ -1,31 +1,44 @@
 ---
-# PREREQ: Pre-fill the disk on exec node first!
-# Run: dd if=/dev/zero of=/tmp/fill-disk bs=1M count=9000
-# This leaves ~500MB free
+# Reproducer for: "Failed to JSON parse a line from worker stream"
+#
+# PREREQ: Pre-fill disk on exec node leaving ~200MB:
+#   sudo dd if=/dev/zero of=/tmp/fill-disk bs=1M count=9500
+#
+# The receptor stdout file is in /var/lib/receptor/<work-unit-id>/stdout
+# We need to fill that filesystem while the job is streaming output.
 
 - name: Reproduce JSON parse error from disk full
   hosts: all
   gather_facts: false
   tasks:
-    - name: Start background disk filler
+    - name: Fill receptor work directory in background
       shell: |
-        nohup bash -c 'sleep 2; while true; do dd if=/dev/zero of=/tmp/fill-bg-$RANDOM bs=1M count=50 2>/dev/null || break; done' &
+        nohup bash -c '
+          sleep 1
+          # Fill /var/lib/receptor specifically
+          while true; do
+            dd if=/dev/zero of=/var/lib/receptor/fill-$RANDOM bs=1M count=10 2>/dev/null || break
+          done
+          # Also fill /tmp as backup
+          while true; do
+            dd if=/dev/zero of=/tmp/fill-$RANDOM bs=1M count=10 2>/dev/null || break
+          done
+        ' >/dev/null 2>&1 &
       async: 1
       poll: 0
 
-    - name: Generate massive output to fill remaining space and cause JSON truncation
-      debug:
-        msg: "{{ item }}: {{ 'X' * 500 }} - Large output line to consume disk space during JSON streaming"
-      loop: "{{ range(1, 2000) | list }}"
+    - name: Sleep to let disk filler start
+      pause:
+        seconds: 2
 
-    - name: More output with shell commands
+    - name: Generate continuous large output to grow stdout file
       shell: |
-        for i in $(seq 1 50); do
-          echo "Line $i from shell {{ item }}: $(date) - extra padding text to increase output size"
-        done
-      loop: "{{ range(1, 100) | list }}"
-      register: massive_output
+        echo "{{ item }}: $(python3 -c "print('X' * 1000)") - Padding to grow receptor stdout file"
+      loop: "{{ range(1, 5000) | list }}"
+      ignore_errors: true
 
-    - name: Dump registered variable
+    - name: More output after potential disk full
       debug:
-        var: massive_output
+        msg: "Post-fill output {{ item }}: This line may fail to write if disk is full"
+      loop: "{{ range(1, 1000) | list }}"
+      ignore_errors: true
