@@ -127,7 +127,8 @@ sudo rm -rf /tmp/receptor/<exec-node>/aapcontrollocal*
 
 ### Receptor logs
 ```bash
-sudo journalctl -u receptor -f
+sudo cat /var/log/receptor/receptor.log
+sudo tail -f /var/log/receptor/receptor.log
 ```
 
 ### Work unit contents

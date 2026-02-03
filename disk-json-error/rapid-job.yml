@@ -1,0 +1,26 @@
+---
+# Reproducer for intermittent "Failed to JSON parse a line from worker stream"
+#
+# This job simulates the customer scenario:
+# - Runs every 10 seconds via schedule
+# - Takes ~9-10 seconds to complete
+# - Small output (half page)
+# - Fails ~0.01% of the time
+#
+# Schedule this job to run every 10 seconds and monitor for failures.
+
+- name: Rapid scheduled job (ServiceNow check simulation)
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Simulate API check (takes ~9 seconds)
+      ansible.builtin.pause:
+        seconds: 9
+
+    - name: Simulate small output
+      ansible.builtin.debug:
+        msg: |
+          Checking for ServiceNow tasks to process...
+          Query completed successfully.
+          No new tasks found.
+          Next check in 10 seconds.
