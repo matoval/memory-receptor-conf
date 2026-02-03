@@ -1,44 +1,23 @@
 ---
 # Reproducer for: "Failed to JSON parse a line from worker stream"
 #
-# PREREQ: Pre-fill disk on exec node leaving ~200MB:
-#   sudo dd if=/dev/zero of=/tmp/fill-disk bs=1M count=9500
+# PREREQ: Pre-fill disk on exec node leaving only ~50MB:
+#   sudo rm -f /tmp/fill-* /var/lib/receptor/fill-*
+#   sudo dd if=/dev/zero of=/tmp/fill-disk bs=1M count=9800
+#   df -h /
 #
-# The receptor stdout file is in /var/lib/receptor/<work-unit-id>/stdout
-# We need to fill that filesystem while the job is streaming output.
+# Then run this job - the output will exceed 50MB and cause JSON truncation
 
 - name: Reproduce JSON parse error from disk full
   hosts: all
   gather_facts: false
   tasks:
-    - name: Fill receptor work directory in background
+    - name: Generate massive output to exceed remaining disk space
       shell: |
-        nohup bash -c '
-          sleep 1
-          # Fill /var/lib/receptor specifically
-          while true; do
-            dd if=/dev/zero of=/var/lib/receptor/fill-$RANDOM bs=1M count=10 2>/dev/null || break
-          done
-          # Also fill /tmp as backup
-          while true; do
-            dd if=/dev/zero of=/tmp/fill-$RANDOM bs=1M count=10 2>/dev/null || break
-          done
-        ' >/dev/null 2>&1 &
-      async: 1
-      poll: 0
+        python3 -c "print('OUTPUT_LINE_{{ item }}: ' + 'X' * 2000)"
+      loop: "{{ range(1, 10000) | list }}"
 
-    - name: Sleep to let disk filler start
-      pause:
-        seconds: 2
-
-    - name: Generate continuous large output to grow stdout file
-      shell: |
-        echo "{{ item }}: $(python3 -c "print('X' * 1000)") - Padding to grow receptor stdout file"
-      loop: "{{ range(1, 5000) | list }}"
-      ignore_errors: true
-
-    - name: More output after potential disk full
+    - name: Even more output
       debug:
-        msg: "Post-fill output {{ item }}: This line may fail to write if disk is full"
-      loop: "{{ range(1, 1000) | list }}"
-      ignore_errors: true
+        msg: "DEBUG_{{ item }}: {{ 'Y' * 1000 }}"
+      loop: "{{ range(1, 5000) | list }}"
