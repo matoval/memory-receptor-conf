@@ -1,40 +1,31 @@
 ---
+# PREREQ: Pre-fill the disk on exec node first!
+# Run: dd if=/dev/zero of=/tmp/fill-disk bs=1M count=9000
+# This leaves ~500MB free
+
 - name: Reproduce JSON parse error from disk full
   hosts: all
   gather_facts: false
   tasks:
-    - name: Start generating output
-      debug:
-        msg: "Starting job - disk has space"
-
-    - name: Generate initial output before filling disk
-      debug:
-        msg: "{{ item }}: Initial output line before disk fill"
-      loop: "{{ range(1, 100) | list }}"
-
-    - name: Fill disk completely
+    - name: Start background disk filler
       shell: |
-        # Fill all available space - leave nothing
-        while true; do
-          dd if=/dev/zero of=/tmp/fill-disk-$RANDOM bs=1M count=100 2>/dev/null || break
+        nohup bash -c 'sleep 2; while true; do dd if=/dev/zero of=/tmp/fill-bg-$RANDOM bs=1M count=50 2>/dev/null || break; done' &
+      async: 1
+      poll: 0
+
+    - name: Generate massive output to fill remaining space and cause JSON truncation
+      debug:
+        msg: "{{ item }}: {{ 'X' * 500 }} - Large output line to consume disk space during JSON streaming"
+      loop: "{{ range(1, 2000) | list }}"
+
+    - name: More output with shell commands
+      shell: |
+        for i in $(seq 1 50); do
+          echo "Line $i from shell {{ item }}: $(date) - extra padding text to increase output size"
         done
-        # Also fill receptor work directory
-        dd if=/dev/zero of=/var/lib/receptor/fill-disk bs=1M count=100 2>/dev/null || true
+      loop: "{{ range(1, 100) | list }}"
+      register: massive_output
 
-    - name: Generate lots of output AFTER disk is full
+    - name: Dump registered variable
       debug:
-        msg: "{{ item }}: POST-FILL output line - this should cause JSON write failures when disk is full. Adding extra text to make each message larger and increase likelihood of write failure during JSON serialization."
-      loop: "{{ range(1, 1000) | list }}"
-
-    - name: Run shell commands to generate more JSON events
-      shell: |
-        echo "Shell output {{ item }} - generating stdout that must be captured in JSON"
-        echo "Additional line {{ item }}"
-        echo "More output {{ item }}"
-      loop: "{{ range(1, 200) | list }}"
-      register: shell_output
-      ignore_errors: true
-
-    - name: Final task with large registered output
-      debug:
-        var: shell_output
+        var: massive_output
