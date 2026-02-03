@@ -3,7 +3,7 @@
 ## Root Cause
 
 When AAP executes a job, it:
-1. Copies the **entire project directory** (including collections) to a job runtime directory
+1. Copies the **entire project directory** (including role files/) to a job runtime directory
 2. Base64 encodes the runtime directory and sends it to receptor
 3. Receptor writes this to `/tmp/receptor/<node>/<workunit>/stdin`
 4. Job output is written to `/tmp/receptor/<node>/<workunit>/stdout`
@@ -15,82 +15,81 @@ causing invalid JSON that triggers: `Failed to JSON parse a line from worker str
 
 ```
 disk-json-error/
-├── collections/
-│   └── requirements.yml    # Large collections (~200MB+ total)
-├── site.yml                # Simple playbook using the collections
+├── roles/
+│   └── largefiles/
+│       ├── files/
+│       │   ├── data_1.bin   # 512MB - created on control node
+│       │   ├── data_2.bin   # 512MB - created on control node
+│       │   ├── data_3.bin   # 512MB - created on control node
+│       │   └── data_4.bin   # 512MB - created on control node
+│       └── tasks/
+│           └── main.yml     # copy tasks that reference the files
+├── site.yml                 # playbook using the largefiles role
 └── README.md
 ```
 
-The collections specified in `requirements.yml` total ~200MB+:
-- azure.azcollection (~50MB)
-- amazon.aws (~30MB)
-- google.cloud (~30MB)
-- cisco.aci (~20MB)
-- vmware.vmware_rest (~25MB)
-- kubernetes.core (~15MB)
-- community.vmware (~30MB)
-- community.aws (~25MB)
-
 ## Reproduction Steps
 
-### 1. Push to Git and Create Project in AAP
+### 1. Clone/Sync Project to Control Node
+
+The project must be available in `/var/lib/awx/projects/`. Either:
+- Use a Git project that syncs this repo
+- Use a Manual project and copy files
+
+### 2. Create Large Files on Control Node
+
+SSH to control node and create the data files in the role's files/ directory:
 
 ```bash
-cd ~/repos/memory-receptor-conf
-git add disk-json-error/
-git commit -m "Add JSON parse error reproducer with large collections"
-git push
+PROJECT_DIR="/var/lib/awx/projects/<your-project-name>/disk-json-error"
+
+cd "$PROJECT_DIR/roles/largefiles/files"
+
+for i in 1 2 3 4; do
+  echo "Creating file $i of 4 (512MB)..."
+  sudo dd if=/dev/urandom of=data_$i.bin bs=1M count=512 status=progress
+done
+
+sudo chown -R awx:awx "$PROJECT_DIR"
+sudo du -sh "$PROJECT_DIR"
 ```
 
-In AAP:
-1. Create Project pointing to this git repo
-2. Set **Playbook Directory** to `disk-json-error` (or leave empty if using full repo)
-3. Sync the project - this will install the collections
+### 3. Create Job Template in AAP
 
-### 2. Create Job Template
+1. Project pointing to this repo (or manual project)
+2. Playbook: `disk-json-error/site.yml`
+3. Inventory with hosts on the execution node
 
-1. Create Job Template
-2. Project: (the project you created)
-3. Playbook: `disk-json-error/site.yml` (or `site.yml` if using subdirectory)
-4. Inventory: any inventory with hosts on the execution node
-
-### 3. Pre-fill Execution Node Disk
+### 4. Pre-fill Execution Node Disk
 
 SSH to execution node:
 ```bash
 df -h /tmp
 
-# Fill disk leaving ~200MB free (less than the collections size)
-# Adjust size based on available space
+# Fill disk leaving ~500MB free (less than the 2GB project)
 sudo fallocate -l <size>M /tmp/fill-disk
 
 df -h /tmp
 ```
 
-### 4. Run the Job
+### 5. Run the Job
 
-Launch the job. The large collections (~200MB+) will be transmitted via receptor.
+Launch the job. The 2GB of files in the role will be transmitted via receptor.
 With insufficient disk space, the transmission should fail mid-write.
 
-Expected error: `Failed to JSON parse a line from worker stream`
-
-### 5. Check Logs
-
-On execution node:
+Monitor on exec node during job:
 ```bash
-journalctl -u receptor -n 100 --no-pager | grep -i "space\|error\|json"
-ls -la /tmp/receptor/
+watch -n 0.5 'df -h /tmp; du -sh /tmp/receptor/*/* 2>/dev/null | tail -5'
 ```
+
+Expected error: `Failed to JSON parse a line from worker stream`
 
 ### Cleanup
 
 ```bash
-sudo rm -f /tmp/fill-disk
+# On execution node
+sudo rm -f /tmp/fill-disk /tmp/data_*.bin
+
+# On control node (optional)
+sudo rm -f $PROJECT_DIR/roles/largefiles/files/data_*.bin
 ```
-
-## Alternative: Multiple Concurrent Jobs
-
-Instead of pre-filling disk:
-1. Create multiple job templates using this project
-2. Launch 10+ jobs simultaneously
-3. The concurrent collection transmissions may fill the disk

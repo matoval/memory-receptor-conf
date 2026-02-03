@@ -1,0 +1,40 @@
+---
+# Role that copies large files to trigger transmission via receptor
+# The files in files/ directory must be created on the control node
+# See README.md for setup instructions
+
+- name: Copy large data file 1
+  ansible.builtin.copy:
+    src: data_1.bin
+    dest: /tmp/data_1.bin
+    mode: '0644'
+  ignore_errors: true
+
+- name: Copy large data file 2
+  ansible.builtin.copy:
+    src: data_2.bin
+    dest: /tmp/data_2.bin
+    mode: '0644'
+  ignore_errors: true
+
+- name: Copy large data file 3
+  ansible.builtin.copy:
+    src: data_3.bin
+    dest: /tmp/data_3.bin
+    mode: '0644'
+  ignore_errors: true
+
+- name: Copy large data file 4
+  ansible.builtin.copy:
+    src: data_4.bin
+    dest: /tmp/data_4.bin
+    mode: '0644'
+  ignore_errors: true
+
+- name: Show disk usage
+  ansible.builtin.shell: df -h /tmp
+  register: disk_usage
+
+- name: Display disk usage
+  ansible.builtin.debug:
+    var: disk_usage.stdout_lines
