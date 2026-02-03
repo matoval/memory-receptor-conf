@@ -1,23 +1,33 @@
 ---
 # Reproducer for: "Failed to JSON parse a line from worker stream"
 #
-# PREREQ: Pre-fill disk on exec node leaving only ~50MB:
-#   sudo rm -f /tmp/fill-* /var/lib/receptor/fill-*
-#   sudo dd if=/dev/zero of=/tmp/fill-disk bs=1M count=9800
-#   df -h /
+# This playbook uses large collections to increase the project size transmitted
+# via receptor. When the execution node disk is nearly full, the transmission
+# will fail mid-write causing truncated JSON in the stdout file.
 #
-# Then run this job - the output will exceed 50MB and cause JSON truncation
+# See README.md for reproduction steps.
 
-- name: Reproduce JSON parse error from disk full
+- name: Large collection test for JSON parse error
   hosts: all
   gather_facts: false
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - google.cloud
+    - cisco.aci
+    - vmware.vmware_rest
+    - kubernetes.core
+    - community.vmware
+    - community.aws
   tasks:
-    - name: Generate massive output to exceed remaining disk space
-      shell: |
-        python3 -c "print('OUTPUT_LINE_{{ item }}: ' + 'X' * 2000)"
-      loop: "{{ range(1, 10000) | list }}"
+    - name: Show disk usage before test
+      ansible.builtin.shell: df -h /tmp /var/lib/receptor 2>/dev/null || df -h /tmp
+      register: disk_before
 
-    - name: Even more output
-      debug:
-        msg: "DEBUG_{{ item }}: {{ 'Y' * 1000 }}"
-      loop: "{{ range(1, 5000) | list }}"
+    - name: Display disk usage
+      ansible.builtin.debug:
+        var: disk_before.stdout_lines
+
+    - name: Simple task to verify execution
+      ansible.builtin.debug:
+        msg: "Large collection test completed - collections transmitted successfully"
