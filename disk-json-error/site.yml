@@ -7,25 +7,34 @@
       debug:
         msg: "Starting job - disk has space"
 
-    - name: Fill the disk during job execution
-      shell: |
-        # Fill remaining disk space minus a tiny buffer
-        AVAIL=$(df --output=avail / | tail -1)
-        FILL_SIZE=$((AVAIL - 1024))  # Leave 1MB
-        if [ $FILL_SIZE -gt 0 ]; then
-          dd if=/dev/zero of=/tmp/fill-disk-job bs=1K count=$FILL_SIZE 2>/dev/null || true
-        fi
-
-    - name: Generate lots of output to trigger JSON write
+    - name: Generate initial output before filling disk
       debug:
-        msg: "{{ item }}: This is output line that needs to be written to JSON. Generating lots of text to increase the chance of JSON truncation when disk is full."
-      loop: "{{ range(1, 500) | list }}"
-
-    - name: More tasks to extend JSON output
-      shell: echo "Task {{ item }} output for JSON"
+        msg: "{{ item }}: Initial output line before disk fill"
       loop: "{{ range(1, 100) | list }}"
-      register: shell_output
 
-    - name: Debug large registered variable
+    - name: Fill disk completely
+      shell: |
+        # Fill all available space - leave nothing
+        while true; do
+          dd if=/dev/zero of=/tmp/fill-disk-$RANDOM bs=1M count=100 2>/dev/null || break
+        done
+        # Also fill receptor work directory
+        dd if=/dev/zero of=/var/lib/receptor/fill-disk bs=1M count=100 2>/dev/null || true
+
+    - name: Generate lots of output AFTER disk is full
+      debug:
+        msg: "{{ item }}: POST-FILL output line - this should cause JSON write failures when disk is full. Adding extra text to make each message larger and increase likelihood of write failure during JSON serialization."
+      loop: "{{ range(1, 1000) | list }}"
+
+    - name: Run shell commands to generate more JSON events
+      shell: |
+        echo "Shell output {{ item }} - generating stdout that must be captured in JSON"
+        echo "Additional line {{ item }}"
+        echo "More output {{ item }}"
+      loop: "{{ range(1, 200) | list }}"
+      register: shell_output
+      ignore_errors: true
+
+    - name: Final task with large registered output
       debug:
         var: shell_output
