@@ -1,0 +1,28 @@
+---
+# Reproducer for "Failed to JSON parse a line from worker stream"
+# This playbook attempts to crash the Python process to trigger a traceback
+# in the worker stream instead of valid JSON.
+
+- name: Force worker crash to trigger JSON parse error
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Normal task before crash
+      ansible.builtin.debug:
+        msg: "Starting crash test..."
+
+    - name: Crash Python with SIGSEGV
+      ansible.builtin.command: python3 -c "import os; os.kill(os.getpid(), 11)"
+      ignore_errors: true
+
+    - name: Alternative - crash with SIGABRT
+      ansible.builtin.command: python3 -c "import os; os.abort()"
+      ignore_errors: true
+
+    - name: Alternative - cause unhandled exception in module
+      ansible.builtin.command: python3 -c "raise SystemExit('Forced crash')"
+      ignore_errors: true
+
+    - name: This task should not run if crash worked
+      ansible.builtin.debug:
+        msg: "Crash did not work - this task ran"
